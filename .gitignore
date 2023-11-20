@@ -27,6 +27,10 @@
 *.lib
 
 # Executables
+/out
 *.exe
 *.out
 *.app
+
+# Visual studio settings:
+/.vs
