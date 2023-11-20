@@ -58,7 +58,7 @@ void CWindowsService::ServiceWorkerThread(void)
 void CWindowsService::OnStop()
 {
     // Log a service stop message to the Application log.
-    WriteEventLogEntry((PWSTR)"WindowsService in OnStop", EVENTLOG_INFORMATION_TYPE);
+    WriteEventLogEntry((PWSTR)L"WindowsService in OnStop", EVENTLOG_INFORMATION_TYPE);
 
     // Indicate that the service is stopping and wait for the finish of the 
     // main service function (ServiceWorkerThread).
