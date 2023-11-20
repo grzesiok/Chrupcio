@@ -82,8 +82,7 @@ void UninstallService(PWSTR pszServiceName)
 	}
 
 	// Open the service with delete, stop, and query status permissions
-	schService = OpenServiceW(schSCManager, pszServiceName, SERVICE_STOP |
-		SERVICE_QUERY_STATUS | DELETE);
+	schService = OpenServiceW(schSCManager, pszServiceName, SERVICE_STOP | SERVICE_QUERY_STATUS | DELETE);
 	if (schService == NULL)
 	{
 		wprintf(L"OpenService failed w/err 0x%08lx\n", GetLastError());
