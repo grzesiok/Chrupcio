@@ -4,6 +4,7 @@
 #include "Chrupcio.h"
 #include "service/ServiceInstaller.h"
 #include "service/CThreadPool.h"
+#include "pcap/NetworkWatcher.h"
 
 CWindowsService::CWindowsService(PWSTR pszServiceName,
     BOOL fCanStop,
@@ -17,7 +18,7 @@ CWindowsService::CWindowsService(PWSTR pszServiceName,
     m_hStoppedEvent = CreateEvent(NULL, TRUE, FALSE, NULL);
     if (m_hStoppedEvent == NULL)
     {
-        throw ServiceErrorWrapper(GetLastError());
+        throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorWrapper(GetLastError()), L"Create Event StoppedEvent failed");
     }
 }
 
@@ -42,12 +43,12 @@ void CWindowsService::OnStart(DWORD dwArgc, LPWSTR* lpszArgv)
 
 void CWindowsService::ServiceWorkerThread(void)
 {
+
+    CNetworkWatcher networkWatcher = CNetworkWatcher((PWSTR)"\\Device\\NPF_{8CDF54B9-41F5-4B0E-8C05-A7A7ACFB5243}");
     // Periodically check if the service is stopping.
     while (!m_fStopping)
     {
-        // Perform main service function here...
-
-        ::Sleep(2000);  // Simulate some lengthy operations.
+        networkWatcher.nextPacket();
     }
 
     // Signal the stopped event.

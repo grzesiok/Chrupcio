@@ -3,7 +3,8 @@
 
 #pragma once
 
-#include "service\ServiceBase.h"
+#define _WINSOCKAPI_
+#include "service/ServiceBase.h"
 #include "Error.h"
 
 // Internal name of the service

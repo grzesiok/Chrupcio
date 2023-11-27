@@ -8,21 +8,18 @@
 
 #pragma once
 
-#define _WINSOCKAPI_
-#include <windows.h>
 #include <pcap.h>
+#include <windows.h>
 
 class CNetworkWatcher
 {
 public:
     CNetworkWatcher(PWSTR pszDeviceName);
-
-    // Statistic object destructor. 
+ 
     virtual ~CNetworkWatcher(void);
 
-protected:
-    // Start the service.
-    void ProcessPacket(void);
+    // To pull next packet
+    void nextPacket(void);
 
 private:
     pcap_t* m_pcapHandle;

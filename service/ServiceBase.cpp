@@ -18,6 +18,7 @@
 
 #pragma region Includes
 #include "ServiceBase.h"
+#include "../Error.h"
 #include <assert.h>
 #include <strsafe.h>
 #pragma endregion
@@ -81,7 +82,7 @@ void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR* pszArgv)
     s_service->m_statusHandle = RegisterServiceCtrlHandlerW(s_service->m_name, ServiceCtrlHandler);
     if (s_service->m_statusHandle == NULL)
     {
-        throw GetLastError();
+        throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorWrapper(GetLastError()), L"RegisterServiceCtrlHandlerW failed");
     }
 
     // Start the service.
@@ -217,21 +218,13 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR* pszArgv)
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
     }
-    catch (DWORD dwError)
+    catch (ServiceException &e)
     {
         // Log the error.
-        WriteErrorLogEntry((PWSTR)L"Service Start", dwError);
+        WriteEventLogEntry(e.whatType(), e.whatMessage());
 
         // Set the service status to be stopped.
-        SetServiceStatus(SERVICE_STOPPED, dwError);
-    }
-    catch (...)
-    {
-        // Log the error.
-        WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"Service failed to start.");
-
-        // Set the service status to be stopped.
-        SetServiceStatus(SERVICE_STOPPED);
+        SetServiceStatus(SERVICE_STOPPED, e.whatAppCode());
     }
 }
 
@@ -278,20 +271,12 @@ void CServiceBase::Stop()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (DWORD dwError)
+    catch (ServiceException& e)
     {
         // Log the error.
-        WriteErrorLogEntry((PWSTR)L"Service Stop", dwError);
+        WriteEventLogEntry(e.whatType(), e.whatMessage());
 
-        // Set the orginal service status.
-        SetServiceStatus(dwOriginalState);
-    }
-    catch (...)
-    {
-        // Log the error.
-        WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"Service failed to stop.");
-
-        // Set the orginal service status.
+        // Set the service status to be stopped.
         SetServiceStatus(dwOriginalState);
     }
 }
@@ -333,20 +318,12 @@ void CServiceBase::Pause()
         // Tell SCM that the service is paused.
         SetServiceStatus(SERVICE_PAUSED);
     }
-    catch (DWORD dwError)
+    catch (ServiceException& e)
     {
         // Log the error.
-        WriteErrorLogEntry((PWSTR)L"Service Pause", dwError);
+        WriteEventLogEntry(e.whatType(), e.whatMessage());
 
-        // Tell SCM that the service is still running.
-        SetServiceStatus(SERVICE_RUNNING);
-    }
-    catch (...)
-    {
-        // Log the error.
-        WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"Service failed to pause.");
-
-        // Tell SCM that the service is still running.
+        // Set the service status to be stopped.
         SetServiceStatus(SERVICE_RUNNING);
     }
 }
@@ -386,20 +363,12 @@ void CServiceBase::Continue()
         // Tell SCM that the service is running.
         SetServiceStatus(SERVICE_RUNNING);
     }
-    catch (DWORD dwError)
+    catch (ServiceException& e)
     {
         // Log the error.
-        WriteErrorLogEntry((PWSTR)L"Service Continue", dwError);
+        WriteEventLogEntry(e.whatType(), e.whatMessage());
 
-        // Tell SCM that the service is still paused.
-        SetServiceStatus(SERVICE_PAUSED);
-    }
-    catch (...)
-    {
-        // Log the error.
-        WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"Service failed to resume.");
-
-        // Tell SCM that the service is still paused.
+        // Set the service status to be stopped.
         SetServiceStatus(SERVICE_PAUSED);
     }
 }
@@ -435,15 +404,10 @@ void CServiceBase::Shutdown()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (DWORD dwError)
+    catch (ServiceException& e)
     {
         // Log the error.
-        WriteErrorLogEntry((PWSTR)L"Service Shutdown", dwError);
-    }
-    catch (...)
-    {
-        // Log the error.
-        WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"Service failed to shut down.");
+        WriteEventLogEntry(e.whatType(), e.whatMessage());
     }
 }
 
@@ -540,23 +504,6 @@ void CServiceBase::WriteEventLogEntry(WORD wType, PWSTR pszMessage, ...)
 
         DeregisterEventSource(hEventSource);
     }
-}
-
-
-//
-//   FUNCTION: CServiceBase::WriteErrorLogEntry(PWSTR, DWORD)
-//
-//   PURPOSE: Log an error message to the Application event log.
-//
-//   PARAMETERS:
-//   * pszFunction - the function that gives the error
-//   * dwError - the error code
-//
-void CServiceBase::WriteErrorLogEntry(PWSTR pszFunction, DWORD dwError)
-{
-    wchar_t szMessage[260];
-    StringCchPrintfW(szMessage, ARRAYSIZE(szMessage), L"%s failed w/err 0x%08lx", pszFunction, dwError);
-    WriteEventLogEntry(EVENTLOG_ERROR_TYPE, szMessage);
 }
 
 #pragma endregion
