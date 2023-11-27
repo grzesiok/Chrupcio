@@ -35,7 +35,6 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp" "Chrupcio.h" "service/ServiceBase.
 target_link_libraries(Chrupcio "pqxx")
 target_compile_features(${PROJECT_NAME} PUBLIC cxx_std_20)
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
-message("PQXX_LIBRARIES=${PQXX_LIBRARIES}")
 target_link_libraries(${PROJECT_NAME} "${PQXX_LIBRARIES}")
 
 # Add include for external software
