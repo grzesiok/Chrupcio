@@ -17,8 +17,8 @@
 \***************************************************************************/
 
 #pragma region Includes
-#include "ServiceBase.h"
-#include "../Error.h"
+#include "service/ServiceBase.h"
+#include "service/ServiceException.h"
 #include <assert.h>
 #include <strsafe.h>
 #pragma endregion
@@ -82,7 +82,7 @@ void WINAPI CServiceBase::ServiceMain(DWORD dwArgc, PWSTR* pszArgv)
     s_service->m_statusHandle = RegisterServiceCtrlHandlerW(s_service->m_name, ServiceCtrlHandler);
     if (s_service->m_statusHandle == NULL)
     {
-        throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorWrapper(GetLastError()), L"RegisterServiceCtrlHandlerW failed");
+        throw CServiceException(EVENTLOG_ERROR_TYPE, GetLastError(), L"RegisterServiceCtrlHandlerW failed");
     }
 
     // Start the service.
@@ -218,7 +218,7 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR* pszArgv)
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
     }
-    catch (ServiceException &e)
+    catch (CServiceException& e)
     {
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
@@ -271,7 +271,7 @@ void CServiceBase::Stop()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (ServiceException& e)
+    catch (CServiceException& e)
     {
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
@@ -318,7 +318,7 @@ void CServiceBase::Pause()
         // Tell SCM that the service is paused.
         SetServiceStatus(SERVICE_PAUSED);
     }
-    catch (ServiceException& e)
+    catch (CServiceException& e)
     {
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
@@ -363,7 +363,7 @@ void CServiceBase::Continue()
         // Tell SCM that the service is running.
         SetServiceStatus(SERVICE_RUNNING);
     }
-    catch (ServiceException& e)
+    catch (CServiceException& e)
     {
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
@@ -404,7 +404,7 @@ void CServiceBase::Shutdown()
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
     }
-    catch (ServiceException& e)
+    catch (CServiceException& e)
     {
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
@@ -439,9 +439,7 @@ void CServiceBase::OnShutdown()
 //   * dwWin32ExitCode - error code to report
 //   * dwWaitHint - estimated time for pending operation, in milliseconds
 //
-void CServiceBase::SetServiceStatus(DWORD dwCurrentState,
-    DWORD dwWin32ExitCode,
-    DWORD dwWaitHint)
+void CServiceBase::SetServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode, DWORD dwWaitHint)
 {
     static DWORD dwCheckPoint = 1;
 

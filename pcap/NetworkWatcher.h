@@ -9,17 +9,22 @@
 #pragma once
 
 #include <pcap.h>
-#include <windows.h>
+
+struct SNetworkPacket {
+	void* _pdata;
+	timeval _ts;
+	size_t _size;
+};
 
 class CNetworkWatcher
 {
 public:
-    CNetworkWatcher(PWSTR pszDeviceName);
+    CNetworkWatcher(const char* pstrDeviceName, const char* pstrFilterExp);
  
     virtual ~CNetworkWatcher(void);
 
     // To pull next packet
-    void nextPacket(void);
+	SNetworkPacket nextPacket(void);
 
 private:
     pcap_t* m_pcapHandle;

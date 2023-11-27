@@ -1,38 +1,45 @@
 #include "NetworkWatcher.h"
-#include "..\Error.h"
+#include "service/ServiceException.h"
+#include "Error.h"
 
-CNetworkWatcher::CNetworkWatcher(PWSTR pszDeviceName)
+CNetworkWatcher::CNetworkWatcher(const char* pstrDeviceName, const char* pstrFilterExp)
 {
 	char errbuf[PCAP_ERRBUF_SIZE];
-	char filter_exp[] = "ip and not (dst net 192.168.0.0/16 and src net 192.168.0.0/16)"; /* filter expression (only IP packets) */
+	wchar_t werrbuf[PCAP_ERRBUF_SIZE];
 	bpf_u_int32 net;
 	bpf_u_int32 mask;
-	char* p_deviceName = NULL;
+	PWSTR pszDeviceName = new wchar_t[strlen(pstrDeviceName)];
+	PWSTR pszFilterExp = new wchar_t[strlen(pstrFilterExp)];
 
-	wcstombs(p_deviceName, pszDeviceName, wcslen(pszDeviceName));
+	mbstowcs(pszDeviceName, pstrDeviceName, strlen(pstrDeviceName));
+	mbstowcs(pszFilterExp, pstrFilterExp, strlen(pstrFilterExp));
 	/* get network number and mask associated with capture device */
-	if (pcap_lookupnet(p_deviceName, &net, &mask, errbuf) == -1) {
+	if (pcap_lookupnet(pstrDeviceName, &net, &mask, errbuf) == -1) {
 		net = 0;
 		mask = 0;
-		throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Couldn't get netmask for device %s: %s", p_deviceName, errbuf);
+		mbstowcs(werrbuf, errbuf, strlen(errbuf));
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Couldn't get netmask for device %s: %s", pszDeviceName, werrbuf);
 	}
 	/* open capture device */
-	m_pcapHandle = pcap_open_live(p_deviceName, BUFSIZ, 0, 1000, errbuf);
+	m_pcapHandle = pcap_open_live(pstrDeviceName, BUFSIZ, 0, 1000, errbuf);
 	if (m_pcapHandle == NULL) {
-		throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPOpenLiveFailed, L"Couldn't open device %s: %s", p_deviceName, errbuf);
+		mbstowcs(werrbuf, errbuf, strlen(errbuf));
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPOpenLiveFailed, L"Couldn't open device %s: %s", pszDeviceName, werrbuf);
 	}
 	/* make sure we're capturing on an Ethernet device */
 	if (pcap_datalink(m_pcapHandle) != DLT_EN10MB) {
-		throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPDataLinkFailed, L"%s is not an Ethernet", p_deviceName);
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPDataLinkFailed, L"%s is not an Ethernet", pszDeviceName);
 	}
 	/* compile the filter expression */
-	if (pcap_compile(m_pcapHandle, &m_pcapFp, filter_exp, 0, net) == -1) {
-		throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPCompileFailed, L"Couldn't parse filter %s: %s", filter_exp, pcap_geterr(m_pcapHandle));
+	if (pcap_compile(m_pcapHandle, &m_pcapFp, pstrFilterExp, 0, net) == -1) {
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPCompileFailed, L"Couldn't compile filter %s: %s", pszFilterExp, pcap_geterr(m_pcapHandle));
 	}
 	/* apply the compiled filter */
 	if (pcap_setfilter(m_pcapHandle, &m_pcapFp) == -1) {
-		throw ServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPSetFilterFailed, L"Couldn't install filter %s: %s", filter_exp, pcap_geterr(m_pcapHandle));
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPSetFilterFailed, L"Couldn't apply filter %s: %s", pszFilterExp, pcap_geterr(m_pcapHandle));
 	}
+	delete[] pszDeviceName;
+	delete[] pszFilterExp;
 }
 
 CNetworkWatcher::~CNetworkWatcher(void)
@@ -41,9 +48,11 @@ CNetworkWatcher::~CNetworkWatcher(void)
 	pcap_close(m_pcapHandle);
 }
 
-void CNetworkWatcher::nextPacket(void)
-{
-	void* packet;
+SNetworkPacket CNetworkWatcher::nextPacket(void) {
+	SNetworkPacket networkPacket;
 	struct pcap_pkthdr header;
-	packet = (void*)pcap_next(m_pcapHandle, &header);
+	networkPacket._pdata = (void*)pcap_next(m_pcapHandle, &header);
+	networkPacket._size = header.len;
+	networkPacket._ts = header.ts;
+	return networkPacket;
 }

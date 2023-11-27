@@ -1,7 +1,7 @@
 #pragma region "Includes"
 #include <stdio.h>
 #include <windows.h>
-#include "ServiceInstaller.h"
+#include "service/ServiceInstaller.h"
 #pragma endregion
 
 void InstallService(PWSTR pszServiceName,
