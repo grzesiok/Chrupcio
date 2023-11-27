@@ -26,7 +26,7 @@ public:
 
     virtual ~CCommandManager(void);
 
-    uint32_t addCommand(std::string cmd, CCommand* pcommand);
+    bool addCommand(std::string cmd, CCommand* pcommand);
     uint32_t jobExecute(SJob pJob, EJobMode mode, EJobQueueType queueType);
 private:
     std::map<std::string, CCommand*> m_commands;

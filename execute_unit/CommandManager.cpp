@@ -10,9 +10,9 @@ CCommandManager::~CCommandManager(void) {
     }
 }
 
-uint32_t CCommandManager::addCommand(std::string cmd, CCommand *pcommand) {
+bool CCommandManager::addCommand(std::string cmd, CCommand *pcommand) {
     m_commands[cmd] = pcommand;
-    return 0;
+    return true;
 }
 
 uint32_t CCommandManager::jobExecute(SJob pJob, EJobMode mode, EJobQueueType queueType) {
