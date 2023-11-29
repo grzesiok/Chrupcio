@@ -7,8 +7,6 @@
 #include "service/ServiceException.h"
 #include "pcap/NetworkWatcher.h"
 #include "execute_unit/CommandManager.h"
-#include "pcap/PacketAnalyzeCommand.h"
-#include <pqxx/pqxx>
 
 CWindowsService::CWindowsService(PWSTR pszServiceName,
 	BOOL fCanStop,
@@ -24,8 +22,6 @@ CWindowsService::CWindowsService(PWSTR pszServiceName,
 	{
 		throw CServiceException(EVENTLOG_ERROR_TYPE, GetLastError(), L"Create Event StoppedEvent failed");
 	}
-
-	m_cmdManager.addCommand("PACKET_ANALYZE", new PacketAnalyzeCommand());
 }
 
 
@@ -61,26 +57,11 @@ void CWindowsService::ServiceWorkerThread(void)
 {
 	try
 	{
-		CNetworkWatcher networkWatcher = CNetworkWatcher("\\Device\\NPF_{2C02A749-E12B-4F4E-B46A-4BD5094AA41D}",
-			"ip and not (dst net 192.168.0.0/16 and src net 192.168.0.0/16)");
+		CNetworkWatcher networkWatcher = CNetworkWatcher(m_db, "\\Device\\NPF_{2C02A749-E12B-4F4E-B46A-4BD5094AA41D}");
 		// Periodically check if the service is stopping.
-		/* Prepare SQL statement template */
-		m_db->prepare("packets_insert", "INSERT INTO packets (ts_sec,ts_usec,eth_src,eth_dst) VALUES ($1, $2, $3, $4);");
-		/* Create a transactional object. */
-		pqxx::work W(*m_db);
 		while (!m_fStopping)
 		{
-			SNetworkPacket networkPacket = networkWatcher.nextPacket();
-			SJob job("PACKET_ANALYZE", &networkPacket, sizeof(SNetworkPacket));
-			uint32_t retCode = m_cmdManager.jobExecute(job, JobModeSynchronous, JobQueueTypeNone);
-			if (retCode) {
-				WriteEventLogEntry(EVENTLOG_ERROR_TYPE, (PWSTR)L"PACKET_ANALYZE return with code %u", retCode);
-			}
-			else {
-				/* Execute SQL query */
-				W.exec_prepared("packets_insert", 1, 2, 3, 4);
-				W.commit();
-			}
+			Sleep(2000);
 		}
 
 		// Signal the stopped event.
@@ -139,46 +120,6 @@ int main(int argc, const char* argv[])
 			// Uninstall the service when the command is 
 			// "-remove" or "/remove".
 			UninstallService((PWSTR)SERVICE_NAME);
-		}
-		else if (_stricmp("list_devs", argv[1] + 1) == 0)
-		{
-			// List all devices when the command is 
-			// "-list_devs" or "/list_devs".
-			char errbuf[PCAP_ERRBUF_SIZE] = { 0 };
-			pcap_if_t* it = NULL;
-
-			if (pcap_findalldevs(&it, errbuf) == 0) {
-				while (it) {
-					printf("%s - %s", it->name, it->description);
-					if (it->addresses)
-					{
-						struct sockaddr* addr = it->addresses->addr;
-						switch (addr->sa_family) {
-						case AF_INET: {
-							struct sockaddr_in* addr_in = (struct sockaddr_in*)addr;
-							char s[INET_ADDRSTRLEN];
-							printf(" -> %s\n", s);
-							inet_ntop(AF_INET, &(addr_in->sin_addr), s, INET_ADDRSTRLEN);
-							break;
-						}
-						case AF_INET6: {
-							struct sockaddr_in6* addr_in6 = (struct sockaddr_in6*)addr;
-							char s[INET6_ADDRSTRLEN];
-							printf(" -> %s\n", s);
-							inet_ntop(AF_INET6, &(addr_in6->sin6_addr), s, INET6_ADDRSTRLEN);
-							break;
-						}
-						default:
-							break;
-						}
-					}
-					else {
-						printf(" -> NONE\n");
-					}
-					it = it->next;
-				}
-				pcap_freealldevs(it);
-			}
 		}
 	}
 	else

@@ -5,7 +5,6 @@
 
 #define _WINSOCKAPI_
 #include "service/ServiceBase.h"
-#include "execute_unit/CommandManager.h"
 #include "Error.h"
 #include <pqxx/pqxx>
 
@@ -44,9 +43,5 @@ protected:
 private:
     BOOL m_fStopping;
     HANDLE m_hStoppedEvent;
-    CCommandManager m_cmdManager;
     pqxx::connection *m_db;
 };
-
-#include <iostream>
-#include <fstream>

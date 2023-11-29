@@ -1,58 +1,79 @@
 #include "NetworkWatcher.h"
 #include "service/ServiceException.h"
 #include "Error.h"
+#include <algorithm>
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Common++/header/SystemUtils.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Pcap++/header/PcapLiveDeviceList.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Pcap++/header/PcapLiveDevice.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/Packet.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/RawPacket.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/EthLayer.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/IPv4Layer.h"
+#include <string>
 
-CNetworkWatcher::CNetworkWatcher(const char* pstrDeviceName, const char* pstrFilterExp)
+/**
+* A callback function for the async capture which is called each time a packet is captured
+*/
+void onPacketArrives(pcpp::RawPacket* pPacket, pcpp::PcapLiveDevice* pDevice, void* dbConnection)
 {
-	char errbuf[PCAP_ERRBUF_SIZE];
-	wchar_t werrbuf[PCAP_ERRBUF_SIZE];
-	bpf_u_int32 net;
-	bpf_u_int32 mask;
-	PWSTR pszDeviceName = new wchar_t[strlen(pstrDeviceName)];
-	PWSTR pszFilterExp = new wchar_t[strlen(pstrFilterExp)];
+	pqxx::connection* pdb_connection = (pqxx::connection*)dbConnection;
+	/* Create a transactional object. */
+	pqxx::work W(*pdb_connection);
+	// parsed the raw packet
+	pcpp::Packet parsedPacket(pPacket);
+	pcpp::EthLayer* ethernetLayer = parsedPacket.getLayerOfType<pcpp::EthLayer>();
+	if (ethernetLayer == NULL) {
+		//std::cerr << "Something went wrong, couldn't find Ethernet layer" << std::endl;
+		return;
+	}
+	pcpp::IPv4Layer* ipLayer = parsedPacket.getLayerOfType<pcpp::IPv4Layer>();
+	if (ipLayer == NULL) {
+		//std::cerr << "Something went wrong, couldn't find IPv4 layer" << std::endl;
+		return;
+	}
+	/* Execute SQL query */
+	W.exec_prepared("packets_insert",
+		pPacket->getPacketTimeStamp().tv_sec,
+		pPacket->getPacketTimeStamp().tv_nsec,
+		ethernetLayer->getSourceMac().toString(),
+		ethernetLayer->getDestMac().toString(),
+		pcpp::netToHost16(ethernetLayer->getEthHeader()->etherType),
+		pcpp::netToHost16(ipLayer->getIPv4Header()->ipId),
+		(int)ipLayer->getIPv4Header()->timeToLive,
+		ipLayer->getProtocol(),
+		ipLayer->getSrcIPAddress().toString(),
+		ipLayer->getDstIPAddress().toString());
+	/* Commit transaction */
+	W.commit();
+}
 
-	mbstowcs(pszDeviceName, pstrDeviceName, strlen(pstrDeviceName));
-	mbstowcs(pszFilterExp, pstrFilterExp, strlen(pstrFilterExp));
-	/* get network number and mask associated with capture device */
-	if (pcap_lookupnet(pstrDeviceName, &net, &mask, errbuf) == -1) {
-		net = 0;
-		mask = 0;
-		mbstowcs(werrbuf, errbuf, strlen(errbuf));
-		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Couldn't get netmask for device %s: %s", pszDeviceName, werrbuf);
+CNetworkWatcher::CNetworkWatcher(pqxx::connection* pdb_connection, const char* pstrDeviceName)
+{
+	m_pdb_connection = pdb_connection;
+	m_pdb_connection->prepare("packets_insert", "INSERT INTO packets (ts_sec,ts_usec,eth_src,eth_dst,eth_type,ip_id,ip_ttl,ip_protocol,ip_src,ip_dst) \
+			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10);");
+
+	// find the interface by IP address
+	m_dev = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDeviceByIp("192.168.50.69");
+	if (m_dev == NULL) {
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot find interface with name of '%S", pstrDeviceName);
 	}
-	/* open capture device */
-	m_pcapHandle = pcap_open_live(pstrDeviceName, BUFSIZ, 0, 1000, errbuf);
-	if (m_pcapHandle == NULL) {
-		mbstowcs(werrbuf, errbuf, strlen(errbuf));
-		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPOpenLiveFailed, L"Couldn't open device %s: %s", pszDeviceName, werrbuf);
+	if (!m_dev->open())
+	{
+		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot open device '%S", pstrDeviceName);
 	}
-	/* make sure we're capturing on an Ethernet device */
-	if (pcap_datalink(m_pcapHandle) != DLT_EN10MB) {
-		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPDataLinkFailed, L"%s is not an Ethernet", pszDeviceName);
-	}
-	/* compile the filter expression */
-	if (pcap_compile(m_pcapHandle, &m_pcapFp, pstrFilterExp, 0, net) == -1) {
-		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPCompileFailed, L"Couldn't compile filter %s: %s", pszFilterExp, pcap_geterr(m_pcapHandle));
-	}
-	/* apply the compiled filter */
-	if (pcap_setfilter(m_pcapHandle, &m_pcapFp) == -1) {
-		throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPSetFilterFailed, L"Couldn't apply filter %s: %s", pszFilterExp, pcap_geterr(m_pcapHandle));
-	}
-	delete[] pszDeviceName;
-	delete[] pszFilterExp;
+	// create a filter instance to capture only TCP traffic
+	pcpp::ProtoFilter protocolFilter(pcpp::IP);
+	m_dev->setFilter(protocolFilter);
+	pcpp::OnPacketArrivesCallback pOnPacketArrives = onPacketArrives;
+	void* onPacketArrivesUserCookie = NULL;
+	m_dev->startCapture(pOnPacketArrives, m_pdb_connection);
 }
 
 CNetworkWatcher::~CNetworkWatcher(void)
 {
-	pcap_freecode(&m_pcapFp);
-	pcap_close(m_pcapHandle);
-}
-
-SNetworkPacket CNetworkWatcher::nextPacket(void) {
-	SNetworkPacket networkPacket;
-	struct pcap_pkthdr header;
-	networkPacket._pdata = (void*)pcap_next(m_pcapHandle, &header);
-	networkPacket._size = header.len;
-	networkPacket._ts = header.ts;
-	return networkPacket;
+	if (m_dev) {
+		// stop capturing packets
+		m_dev->stopCapture();
+	}
 }

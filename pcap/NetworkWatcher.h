@@ -7,26 +7,18 @@
 \***************************************************************************/
 
 #pragma once
-
-#include <pcap.h>
-
-struct SNetworkPacket {
-	void* _pdata;
-	timeval _ts;
-	size_t _size;
-};
+#include <pqxx/pqxx>
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Pcap++/header/PcapLiveDevice.h"
+#include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/RawPacket.h"
 
 class CNetworkWatcher
 {
 public:
-    CNetworkWatcher(const char* pstrDeviceName, const char* pstrFilterExp);
+    CNetworkWatcher(pqxx::connection* pdb_connection, const char* pstrDeviceName);
  
     virtual ~CNetworkWatcher(void);
 
-    // To pull next packet
-	SNetworkPacket nextPacket(void);
-
 private:
-    pcap_t* m_pcapHandle;
-    struct bpf_program m_pcapFp; /* compiled filter program (expression) */
+    pcpp::PcapLiveDevice* m_dev;
+    pqxx::connection* m_pdb_connection;
 };

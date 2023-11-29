@@ -1,5 +1,5 @@
 #pragma once
-#include <Windows.h>
+#include <minwindef.h>
 #include <strsafe.h>
 #include "Status.h"
 
