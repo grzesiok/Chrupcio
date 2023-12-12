@@ -19,6 +19,6 @@ public:
     virtual ~CNetworkWatcher(void);
 
 private:
-    pcpp::PcapLiveDevice* m_dev;
+    std::vector<pcpp::PcapLiveDevice*> m_devicesList;
     pqxx::connection* m_pdb_connection;
 };
