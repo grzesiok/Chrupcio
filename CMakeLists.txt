@@ -15,7 +15,11 @@ project(Chrupcio DESCRIPTION "Capturing network traffic into DB"
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS /EHsc)
+
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /Zi")
+#set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /INCREMENTAL:NO /DEBUG /OPT:REF /OPT:ICF")
+#set(COMPILE_PDB_NAME ${TARGET_NAME})
+#set(COMPILE_PDB_OUTPUT_DIR ${CMAKE_BINARY_DIR})
 
 # building libpqxx
 FetchContent_Declare(
@@ -54,7 +58,11 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp"
                                "execute_unit/Command.h"
                                "Status.h"
                                "service/ServiceException.h"
-                               "execute_unit/CommandManager.cpp")
+                               "execute_unit/CommandManager.cpp"
+                               "service/ServiceEvent.h"
+                               "algortihms/queue/queue.h"
+                               "algortihms/queue/queue.cpp"
+                               "algortihms/memory/memory.h")
 
 target_link_libraries(${PROJECT_NAME} "${PQXX_LIBRARIES}"
                                       "${PcapPlusPlus_LIBRARIES}")

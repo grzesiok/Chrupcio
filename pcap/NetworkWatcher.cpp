@@ -10,6 +10,8 @@
 #include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/IPv4Layer.h"
 #include "out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header/HttpLayer.h"
 #include <string>
+#include "algortihms/queue/queue.h"
+#include "algortihms/memory/memory.h"
 
 const static std::string gcSQLPacketInsertHTTPRequest =
 "INSERT INTO packet (ts_sec,ts_usec, \
@@ -54,77 +56,88 @@ std::string translateHttpVersionToString(pcpp::HttpVersion httpVersion) {
 	return "Other";
 }
 
+struct Packet {
+	pcpp::LinkLayerType _linkType;
+	timespec _timestamp;
+	int _dataLen;
+};
+
 /**
 * A callback function for the async capture which is called each time a packet is captured
 */
-void onPacketArrives(pcpp::RawPacket* pPacket, pcpp::PcapLiveDevice* pDevice, void* dbConnection)
+void onPacketArrives(pcpp::RawPacket* pPacket, pcpp::PcapLiveDevice* pDevice, void* queue)
 {
-	/* DB connection */
-	pqxx::connection* pdb_connection = (pqxx::connection*)dbConnection;
-	/* Create a transactional object. */
-	pqxx::work W(*pdb_connection);
+	CQueue* pQueue = (CQueue*)queue;
+	// Register producer
+	CQueueProducer* pQueueProducer = pQueue->register_producer();
 	// parsed the raw packet
 	pcpp::Packet parsedPacket(pPacket);
-	pcpp::IPv4Layer* ipLayer = parsedPacket.getLayerOfType<pcpp::IPv4Layer>();
-	if (ipLayer == NULL) {
-		//std::cerr << "Something went wrong, couldn't find IPv4 layer" << std::endl;
-		return;
+	/* Collect information only about HTTP traffic */
+	if (parsedPacket.isPacketOfType(pcpp::HTTPRequest) || parsedPacket.isPacketOfType(pcpp::HTTPResponse)) {
+		Packet* pRawPacket = (Packet*)malloc(sizeof(Packet) + pPacket->getRawDataLen());
+		if (pRawPacket != NULL) {
+			pRawPacket->_timestamp = pPacket->getPacketTimeStamp();
+			pRawPacket->_linkType = pPacket->getLinkLayerType();
+			pRawPacket->_dataLen = pPacket->getRawDataLen();
+			memcpy(memoryPtrMove(pRawPacket, sizeof(Packet)), pPacket->getRawData(), pPacket->getRawDataLen());
+			/* Push data to queue */
+			pQueueProducer->write(pRawPacket, sizeof(Packet) + pPacket->getRawDataLen());
+			free(pRawPacket);
+		}
 	}
-	/* Execute SQL query */
-	if (parsedPacket.isPacketOfType(pcpp::HTTPRequest)) {
-		pcpp::HttpRequestLayer* httpRequestLayer = parsedPacket.getLayerOfType<pcpp::HttpRequestLayer>();
-		std::string httpMethod = translateHttpMethodToString(httpRequestLayer->getFirstLine()->getMethod());
-		std::string httpVersion = translateHttpVersionToString(httpRequestLayer->getFirstLine()->getVersion());
-		W.exec_prepared("packet_insert_httpRequest",
-			(uint64_t)pPacket->getPacketTimeStamp().tv_sec, (uint64_t)pPacket->getPacketTimeStamp().tv_nsec,
-			ipLayer->getSrcIPAddress().toString(), ipLayer->getDstIPAddress().toString(),
-			httpMethod,
-			httpVersion,
-			httpRequestLayer->getUrl(),
-			httpRequestLayer->getDataLen(),
-			httpRequestLayer->getHeaderLen());
-	}
-	else if (parsedPacket.isPacketOfType(pcpp::HTTPResponse)) {
-		pcpp::HttpResponseLayer* httpResponseLayer = parsedPacket.getLayerOfType<pcpp::HttpResponseLayer>();
-		std::string httpVersion = translateHttpVersionToString(httpResponseLayer->getFirstLine()->getVersion());
-		W.exec_prepared("packet_insert_httpResponse",
-			(uint64_t)pPacket->getPacketTimeStamp().tv_sec, (uint64_t)pPacket->getPacketTimeStamp().tv_nsec,
-			ipLayer->getSrcIPAddress().toString(), ipLayer->getDstIPAddress().toString(),
-			httpVersion,
-			httpResponseLayer->getDataLen(),
-			httpResponseLayer->getHeaderLen(),
-			httpResponseLayer->getFirstLine()->getStatusCodeAsInt());
-	}
-	/* Commit transaction */
-	W.commit();
+	delete pQueueProducer;
 }
 
-CNetworkWatcher::CNetworkWatcher(pqxx::connection* pdb_connection, const char* pstrDeviceName)
+void watcherThread(void* queue) {
+	uint32_t ret;
+	void* buffer;
+	CQueue* pQueue = (CQueue*)queue;
+	// Register producer
+	CQueueConsumer* pQueueConsumer = pQueue->register_consumer();
+	if (pQueueConsumer == NULL) {
+		goto __cleanup;
+	}
+	buffer = malloc(sizeof(char) * 1024 * 1024); //Allocating 1MB
+	if (buffer == NULL) {
+		goto __cleanup_free_consumer;
+	}
+	while (pQueue->isActive()) {
+		ret = pQueueConsumer->read(buffer, 1000);
+		if (ret != QUEUE_RET_ERROR) {
+			/* Reformat structure after pulling it from queue */
+			Packet* pPacket = (Packet*)buffer;
+			pcpp::RawPacket* pRawPacket = new pcpp::RawPacket((uint8_t*)memoryPtrMove(pPacket, sizeof(Packet)), pPacket->_dataLen, pPacket->_timestamp, false, pPacket->_linkType);
+		}
+	}
+	free(buffer);
+__cleanup_free_consumer:
+	delete pQueueConsumer;
+__cleanup:
+	return;
+}
+
+CNetworkWatcher::CNetworkWatcher() : queue(1024 * 1024 * 128)
 {
-	m_pdb_connection = pdb_connection;
 	// parse statement
-	m_pdb_connection->prepare("packet_insert_httpRequest", gcSQLPacketInsertHTTPRequest);
-	m_pdb_connection->prepare("packet_insert_httpResponse", gcSQLPacketInsertHTTPResponse);
+	//m_pdb_connection->prepare("packet_insert_httpRequest", gcSQLPacketInsertHTTPRequest);
+	//m_pdb_connection->prepare("packet_insert_httpResponse", gcSQLPacketInsertHTTPResponse);
 	// create a filter instance to capture only rquired traffic
 	pcpp::ProtoFilter protocolFilterHTTP(pcpp::HTTP);
-	std::vector<pcpp::GeneralFilter*> protocolFilterVec;
-	protocolFilterVec.push_back(&protocolFilterHTTP);
-	pcpp::OrFilter protocolFilter(protocolFilterVec);
 	// get the list of interfaces and rint then to the event log
 	m_devicesList = pcpp::PcapLiveDeviceList::getInstance().getPcapLiveDevicesList();
 	for (unsigned int i = 0; i < m_devicesList.size(); i++) {
 		pcpp::PcapLiveDevice* pDev = m_devicesList[i];
 		if (pDev == NULL) {
-			throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot find interface with name of '%S", pstrDeviceName);
+			throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot find interface with name of '%S", pDev->getName());
 		}
 		if (!pDev->open())
 		{
-			throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot open device '%S", pstrDeviceName);
+			throw CServiceException(EVENTLOG_ERROR_TYPE, ServiceErrorPCAPLookupNetFailed, L"Cannot open device '%S", pDev->getName());
 		}
-		pDev->setFilter(protocolFilter);
+		pDev->setFilter(protocolFilterHTTP);
 		pcpp::OnPacketArrivesCallback pOnPacketArrives = onPacketArrives;
-		void* onPacketArrivesUserCookie = NULL;
-		pDev->startCapture(pOnPacketArrives, m_pdb_connection);
+		void* onPacketArrivesUserCookie = &queue;
+		pDev->startCapture(pOnPacketArrives, onPacketArrivesUserCookie);
 	}
 }
 

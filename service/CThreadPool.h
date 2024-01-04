@@ -42,7 +42,6 @@
 
 #include <memory>
 
-
 class CThreadPool
 {
 public:
