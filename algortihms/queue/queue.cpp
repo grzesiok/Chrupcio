@@ -126,14 +126,16 @@ uint32_t CQueue::read(void* pbuf, uint32_t wait_ms) {
     queue_entry_t header;
 
     std::unique_lock<std::mutex> R{ this->_readMutex };
-    auto now = std::chrono::system_clock::now();
-    this->_writeCondVariable.wait_until(R, now + wait_ms * 1ms, [&]()
-        {
-            return this->_stats._memUsageCurrent > 0;
-        });
-    if (!this->_isActive) {
-        R.unlock();
-        return QUEUE_RET_DESTROYING;
+    while (this->_stats._entriesCurrent == 0) {
+        auto now = std::chrono::system_clock::now();
+        this->_writeCondVariable.wait_until(R, now + wait_ms * 1ms, [&]()
+            {
+                return this->_stats._entriesCurrent > 0;
+            });
+        if (!this->_isActive) {
+            R.unlock();
+            return QUEUE_RET_DESTROYING;
+        }
     }
     // copy header as first bytes)
     i_queue_read(&header, sizeof(queue_entry_t));
@@ -176,15 +178,17 @@ uint32_t CQueue::write(const void* pbuf, uint32_t nBytes, uint32_t wait_ms) {
     header._size = nBytes;
     header._crc32 = sse42_crc32(pbuf, nBytes);
     std::unique_lock<std::mutex> W{ this->_writeMutex };
-    auto now = std::chrono::system_clock::now();
-    // check if we have enough room to store data
-    this->_writeCondVariable.wait_until(W, now + wait_ms * 1ms, [&]()
-        {
-            return _stats._memSizeCurrent - _stats._memUsageCurrent >= entrySize;
-        });
-    if (!this->_isActive) {
-        W.unlock();
-        return QUEUE_RET_DESTROYING;
+    while (_stats._memSizeCurrent - _stats._memUsageCurrent <= entrySize) {
+        auto now = std::chrono::system_clock::now();
+        // check if we have enough room to store data
+        this->_writeCondVariable.wait_until(W, now + wait_ms * 1ms, [&]()
+            {
+                return _stats._memSizeCurrent - _stats._memUsageCurrent >= entrySize;
+            });
+        if (!this->_isActive) {
+            W.unlock();
+            return QUEUE_RET_DESTROYING;
+        }
     }
     // copy header
     i_queue_write(&header, sizeof(queue_entry_t));
