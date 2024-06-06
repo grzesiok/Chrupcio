@@ -5,8 +5,6 @@
 
 #define _WINSOCKAPI_
 #include "service/ServiceBase.h"
-#include "Error.h"
-#include <pqxx/pqxx>
 
 // Internal name of the service
 #define SERVICE_NAME             L"Chrupcio"
@@ -43,5 +41,4 @@ protected:
 private:
     BOOL m_fStopping;
     HANDLE m_hStoppedEvent;
-    pqxx::connection *m_db;
 };

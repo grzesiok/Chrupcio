@@ -5,7 +5,6 @@
 #include "service/ServiceInstaller.h"
 #include "service/CThreadPool.h"
 #include "service/ServiceException.h"
-#include "pcap/NetworkWatcher.h"
 #include "execute_unit/CommandManager.h"
 
 CWindowsService::CWindowsService(PWSTR pszServiceName,
@@ -39,16 +38,6 @@ void CWindowsService::OnStart(DWORD dwArgc, LPWSTR* lpszArgv)
 	// Log a service start message to the Application log.
 	WriteEventLogEntry(EVENTLOG_INFORMATION_TYPE, (PWSTR)L"WindowsService in OnStart");
 
-	m_db = new pqxx::connection("dbname = chrupcio user = postgres password = ?? hostaddr = 127.0.0.1 port = 5432");
-	if (m_db->is_open()) {
-		WriteEventLogEntry(EVENTLOG_INFORMATION_TYPE, (PWSTR)L"Opened database successfully: %S", m_db->dbname());
-	}
-	else {
-		delete m_db;
-		m_db = NULL;
-		throw CServiceException(EVENTLOG_ERROR_TYPE, 1, (PWSTR)L"Can't open database");
-	}
-
 	// Queue the main service function for execution in a worker thread.
 	CThreadPool::QueueUserWorkItem(&CWindowsService::ServiceWorkerThread, this);
 }
@@ -57,7 +46,6 @@ void CWindowsService::ServiceWorkerThread(void)
 {
 	try
 	{
-		CNetworkWatcher networkWatcher = CNetworkWatcher(m_db, "\\Device\\NPF_{2C02A749-E12B-4F4E-B46A-4BD5094AA41D}");
 		// Periodically check if the service is stopping.
 		while (!m_fStopping)
 		{
@@ -90,10 +78,6 @@ void CWindowsService::OnStop()
 	if (WaitForSingleObject(m_hStoppedEvent, INFINITE) != WAIT_OBJECT_0)
 	{
 		throw CServiceException(EVENTLOG_ERROR_TYPE, GetLastError(), L"WaitForSingleObject StoppedEvent failed");
-	}
-	if (m_db) {
-		m_db->close();
-		delete m_db;
 	}
 }
 

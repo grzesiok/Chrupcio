@@ -7,7 +7,7 @@ include(FetchContent)
 cmake_minimum_required(VERSION 3.14)
 
 # Definition of project
-project(Chrupcio DESCRIPTION "Capturing network traffic into DB"
+project(Chrupcio DESCRIPTION "Windows service"
                  VERSION 1.0.0
                  LANGUAGES CXX)
 
@@ -17,33 +17,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /Zi")
-#set(CMAKE_SHARED_LINKER_FLAGS "${CMAKE_SHARED_LINKER_FLAGS} /INCREMENTAL:NO /DEBUG /OPT:REF /OPT:ICF")
-#set(COMPILE_PDB_NAME ${TARGET_NAME})
-#set(COMPILE_PDB_OUTPUT_DIR ${CMAKE_BINARY_DIR})
 
-# building libpqxx
-FetchContent_Declare(
-  libpqxx
-  GIT_REPOSITORY https://github.com/jtv/libpqxx.git
-  GIT_TAG 7.7
-)
-set(PQXX_LIBRARIES pqxx)
+# building spdlog
+#FetchContent_Declare(
+#  spdlog
+#  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+#  GIT_TAG v1.14.1
+#)
 
-FetchContent_MakeAvailable(libpqxx)
-
-# building PcapPlusPlus
-FetchContent_Declare(
-  PcapPlusPlus
-  GIT_REPOSITORY https://github.com/seladb/PcapPlusPlus.git
-  GIT_TAG v23.09
-)
-set(PcapPlusPlus_LIBRARIES Pcap++ Packet++ Common++)
-set(PCAP_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/../npcap-sdk/Lib/x64/wpcap.lib)
-set(PCAP_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../npcap-sdk/Include)
-set(Packet_LIBRARY ${CMAKE_CURRENT_SOURCE_DIR}/../npcap-sdk/Lib/x64/Packet.lib)
-set(Packet_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/../npcap-sdk/Include)
-
-FetchContent_MakeAvailable(PcapPlusPlus)
+#FetchContent_MakeAvailable(spdlog)
 
 # Add source to this project's executable.
 add_executable(${PROJECT_NAME} "Chrupcio.cpp"
@@ -52,8 +34,6 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp"
                                "service/ServiceBase.cpp"
                                "service/ServiceInstaller.h"
                                "service/ServiceInstaller.cpp"
-                               "pcap/NetworkWatcher.h"
-                               "pcap/NetworkWatcher.cpp"
                                "execute_unit/CommandManager.h"
                                "execute_unit/Command.h"
                                "Status.h"
@@ -64,13 +44,7 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp"
                                "algortihms/queue/queue.cpp"
                                "algortihms/memory/memory.h")
 
-target_link_libraries(${PROJECT_NAME} "${PQXX_LIBRARIES}"
-                                      "${PcapPlusPlus_LIBRARIES}")
-target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
-                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/libpqxx-src/include
-                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/libpqxx-build/include
-                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/pcapplusplus-src/Common++/header
-                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/pcapplusplus-src/Packet++/header
-                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/pcapplusplus-src/Pcap++/header
-                                                  ${PCAP_INCLUDE_DIR})
+target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+#target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
+#                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/spdlog-src/include)
 # TODO: Add tests and install targets if needed.

@@ -4,12 +4,7 @@
 #include "service/ServiceInstaller.h"
 #pragma endregion
 
-void InstallService(PWSTR pszServiceName,
-	PWSTR pszDisplayName,
-	DWORD dwStartType,
-	PWSTR pszDependencies,
-	PWSTR pszAccount,
-	PWSTR pszPassword)
+void InstallService(PWSTR pszServiceName, PWSTR pszDisplayName, DWORD dwStartType, PWSTR pszDependencies, PWSTR pszAccount, PWSTR pszPassword)
 {
 	WCHAR szPath[MAX_PATH];
 	SC_HANDLE schSCManager = NULL;
