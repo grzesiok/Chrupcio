@@ -3,8 +3,8 @@
 
 #pragma once
 
-#include "service\ServiceBase.h"
-#include "Error.h"
+#define _WINSOCKAPI_
+#include "service/ServiceBase.h"
 
 // Internal name of the service
 #define SERVICE_NAME             L"Chrupcio"
