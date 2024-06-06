@@ -16,14 +16,17 @@ public:
         m_dwAppCode = dwAppCode;
     }
 
+    // returns message for an exception
     PWSTR whatMessage() const throw () {
         return (PWSTR)m_szMessage;
     }
 
+    // returns type of exception
     WORD whatType() const throw () {
         return m_wType;
     }
 
+    //returns code for an exception
     ServiceStatus whatAppCode() const throw () {
         return m_dwAppCode;
     }
