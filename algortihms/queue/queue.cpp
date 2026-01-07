@@ -152,6 +152,22 @@ uint32_t CQueue::read(void* pbuf, uint32_t wait_ms) {
     return header._size;
 }
 
+#ifdef UNIT_TEST
+void CQueue::test_corrupt_next_entry_crc() {
+    // If there is an entry, flip its crc32 to force mismatch
+    std::unique_lock<std::mutex> R{ this->_readMutex };
+    if (this->_stats._entriesCurrent == 0) return;
+    // header is located at tail
+    // make a copy of header, modify in place
+    queue_entry_t* pheader = (queue_entry_t*)this->_tail;
+    pheader->_crc32 ^= 0xffffffff;
+}
+
+uint64_t CQueue::test_get_entries_current() {
+    return this->_stats._entriesCurrent.load();
+}
+#endif
+
 uint32_t CQueueConsumer::read(void* pbuf, uint32_t wait_ms) {
     return this->_pQueue->read(pbuf, wait_ms);
 }

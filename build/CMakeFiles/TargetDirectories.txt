@@ -1,0 +1,6 @@
+D:/GIT/grzesiok/Chrupcio/build/CMakeFiles/Chrupcio.dir
+D:/GIT/grzesiok/Chrupcio/build/CMakeFiles/RUN_TESTS.dir
+D:/GIT/grzesiok/Chrupcio/build/CMakeFiles/ALL_BUILD.dir
+D:/GIT/grzesiok/Chrupcio/build/CMakeFiles/ZERO_CHECK.dir
+D:/GIT/grzesiok/Chrupcio/build/tests/CMakeFiles/ChrupcioTests.dir
+D:/GIT/grzesiok/Chrupcio/build/tests/CMakeFiles/RUN_TESTS.dir

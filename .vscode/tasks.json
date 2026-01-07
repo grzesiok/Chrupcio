@@ -1,0 +1,45 @@
+{
+  "version": "2.0.0",
+  "tasks": [
+    {
+      "label": "CMake: Configure",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["-S",".","-B","build","-G","Visual Studio 17 2022"],
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Build",
+      "type": "shell",
+      "command": "cmake",
+      "args": ["--build","build","--config","${command:cmake.buildConfig}"],
+      "dependsOn": "CMake: Configure",
+      "group": "build",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests (ctest)",
+      "type": "shell",
+      "command": "ctest",
+      "args": ["-C","${command:cmake.buildConfig}","--output-on-failure"],
+      "group": "test",
+      "presentation": { "reveal": "always" },
+      "problemMatcher": []
+    },
+    {
+      "label": "Run App",
+      "type": "process",
+      "command": "${workspaceFolder}/build/${command:cmake.buildConfig}/Chrupcio.exe",
+      "group": "none",
+      "problemMatcher": []
+    },
+    {
+      "label": "Run Tests (exe)",
+      "type": "process",
+      "command": "${workspaceFolder}/build/${command:cmake.buildConfig}/ChrupcioTests.exe",
+      "group": "none",
+      "problemMatcher": []
+    }
+  ]
+}

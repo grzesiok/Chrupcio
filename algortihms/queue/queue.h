@@ -54,6 +54,11 @@ public:
     bool isActive();
     uint32_t write(const void* pbuf, uint32_t nBytes, uint32_t wait_ms);
     uint32_t read(void* pbuf, uint32_t wait_ms);
+#ifdef UNIT_TEST
+    // Test helpers
+    void test_corrupt_next_entry_crc();
+    uint64_t test_get_entries_current();
+#endif
 private:
     char* _head;
     char* _tail;

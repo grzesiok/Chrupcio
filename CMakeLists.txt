@@ -47,4 +47,6 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp"
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 #                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/spdlog-src/include)
-# TODO: Add tests and install targets if needed.
+# Add tests
+enable_testing()
+add_subdirectory(tests)

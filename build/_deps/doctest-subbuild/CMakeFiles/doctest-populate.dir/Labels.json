@@ -1,0 +1,46 @@
+{
+	"sources" : 
+	[
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/doctest-populate"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/5c0edee4db8de37e1e455d21c08cc316/doctest-populate.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/85b4f6defb35f4d1a4bc242665040dc1/doctest-populate-complete.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-build.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-configure.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-download.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-install.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-mkdir.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-patch.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-test.rule"
+		},
+		{
+			"file" : "D:/GIT/grzesiok/Chrupcio/build/_deps/doctest-subbuild/CMakeFiles/b734f3d1115826c703ea719a102a20a3/doctest-populate-update.rule"
+		}
+	],
+	"target" : 
+	{
+		"labels" : 
+		[
+			"doctest-populate"
+		],
+		"name" : "doctest-populate"
+	}
+}
