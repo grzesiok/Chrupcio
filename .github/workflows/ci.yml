@@ -1,0 +1,67 @@
+name: CI - Build & Test
+
+on:
+  push:
+    branches: [ '**' ]
+  pull_request:
+    branches: [ '**' ]
+
+jobs:
+  build-and-test:
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Show environment
+        run: |
+          echo "OS: $RUNNER_OS"
+          cmake --version || true
+          ctest --version || true
+
+      - name: Configure (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
+
+      - name: Configure (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake -S . -B build -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release
+
+      - name: Build (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          cmake --build build --config Release -- -j
+
+      - name: Build (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          cmake --build build --config Release -- /m:1
+
+      - name: Run tests (ctest)
+        run: |
+          ctest --test-dir build -C Release --output-on-failure
+
+      - name: Upload CTest logs
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ctest-logs-${{ matrix.os }}
+          path: |
+            build/Testing
+            build/Testing/**
+
+      - name: Upload test-executable output (if any)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-executables-${{ matrix.os }}
+          path: |
+            build/tests/**
+            build/**/ChrupcioTests* 
