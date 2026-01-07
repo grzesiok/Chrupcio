@@ -22,6 +22,19 @@ jobs:
           cmake --version || true
           ctest --version || true
 
+      - name: Clean previous build directory (Linux/macOS)
+        if: matrix.os != 'windows-latest'
+        run: |
+          # Ensure no stale CMakeCache.txt from a different platform remains
+          rm -rf build || true
+
+      - name: Clean previous build directory (Windows)
+        if: matrix.os == 'windows-latest'
+        shell: pwsh
+        run: |
+          # Ensure no stale CMakeCache.txt from a different platform remains
+          if (Test-Path build) { Remove-Item -Recurse -Force build }
+
       - name: Configure (Linux/macOS)
         if: matrix.os != 'windows-latest'
         run: |
