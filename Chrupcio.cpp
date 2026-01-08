@@ -5,6 +5,7 @@
 #include "service/ServiceInstaller.h"
 #include "service/CThreadPool.h"
 #include "service/ServiceException.h"
+#include "execute_unit/CommandManager.h"
 
 CWindowsService::CWindowsService(PWSTR pszServiceName,
 	BOOL fCanStop,

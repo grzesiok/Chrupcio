@@ -361,3 +361,53 @@ MigrationBackup/
 
 # Fody - auto-generated XML schema
 FodyWeavers.xsd
+
+# === Project-specific ignores ===
+# CMake / build artifacts
+/build/
+/Build/
+/cmake-build-*/
+CMakeFiles/
+CMakeCache.txt
+cmake_install.cmake
+Makefile
+CTestTestfile.cmake
+/Testing/
+**/Testing/
+
+# Build outputs
+*.exe
+*.dll
+*.lib
+*.so
+*.dylib
+*.pdb
+*.obj
+*.o
+
+# IDEs / editors
+.vscode/
+.idea/
+*.code-workspace
+
+# Fetched/temporary third-party source directories (FetchContent/_deps)
+_deps/
+_DEPENDS/
+doctest/
+doctest-*/
+
+# Test artifacts, logs, temporary files
+*.log
+*.tmp
+*.out
+
+# Generated packages and archives
+*.zip
+*.tar.gz
+*.7z
+
+# macOS
+.DS_Store
+
+# Windows
+Thumbs.db
