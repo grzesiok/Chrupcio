@@ -19,13 +19,21 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc /Zi")
 
 # building spdlog
-#FetchContent_Declare(
-#  spdlog
-#  GIT_REPOSITORY https://github.com/gabime/spdlog.git
-#  GIT_TAG v1.14.1
-#)
+FetchContent_Declare(
+  spdlog
+  GIT_REPOSITORY https://github.com/gabime/spdlog.git
+  GIT_TAG v1.14.1
+)
 
-#FetchContent_MakeAvailable(spdlog)
+FetchContent_MakeAvailable(spdlog)
+
+# Ensure fmt is available for formatting (used by Logging.h)
+FetchContent_Declare(
+  fmt
+  GIT_REPOSITORY https://github.com/fmtlib/fmt.git
+  GIT_TAG 10.1.1
+)
+FetchContent_MakeAvailable(fmt)
 
 # Add source to this project's executable.
 add_executable(${PROJECT_NAME} "Chrupcio.cpp"
@@ -42,9 +50,14 @@ add_executable(${PROJECT_NAME} "Chrupcio.cpp"
                                "service/ServiceEvent.h"
                                "algortihms/queue/queue.h"
                                "algortihms/queue/queue.cpp"
-                               "algortihms/memory/memory.h")
+                               "algortihms/memory/memory.h"
+                               "logging/Logging.h"
+                               "logging/Logging.cpp")
 
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR})
+
+# Link spdlog and fmt for application logging
+target_link_libraries(${PROJECT_NAME} PRIVATE spdlog::spdlog fmt::fmt)
 #target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}
 #                                                  ${CMAKE_CURRENT_SOURCE_DIR}/out/build/x64-debug/_deps/spdlog-src/include)
 # Add tests

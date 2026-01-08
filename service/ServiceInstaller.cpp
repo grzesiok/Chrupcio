@@ -2,6 +2,8 @@
 #include <stdio.h>
 #include <windows.h>
 #include "service/ServiceInstaller.h"
+#include "logging/Logging.h"
+#include "utils/StringConversion.h"
 #pragma endregion
 
 void InstallService(PWSTR pszServiceName, PWSTR pszDisplayName, DWORD dwStartType, PWSTR pszDependencies, PWSTR pszAccount, PWSTR pszPassword)
@@ -13,6 +15,7 @@ void InstallService(PWSTR pszServiceName, PWSTR pszDisplayName, DWORD dwStartTyp
 	if (GetModuleFileNameW(NULL, szPath, ARRAYSIZE(szPath)) == 0)
 	{
 		wprintf(L"GetModuleFileName failed w/err 0x%08lx\n", GetLastError());
+		Logging::error("GetModuleFileName failed: 0x{:08x}", GetLastError());
 		goto Cleanup;
 	}
 
@@ -21,10 +24,9 @@ void InstallService(PWSTR pszServiceName, PWSTR pszDisplayName, DWORD dwStartTyp
 	if (schSCManager == NULL)
 	{
 		wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
+		Logging::error("OpenSCManager failed: 0x{:08x}", GetLastError());
 		goto Cleanup;
 	}
-
-	// Install the service into SCM by calling CreateService
 	schService = CreateServiceW(
 		schSCManager,                   // SCManager database
 		pszServiceName,                 // Name of service
@@ -43,10 +45,15 @@ void InstallService(PWSTR pszServiceName, PWSTR pszDisplayName, DWORD dwStartTyp
 	if (schService == NULL)
 	{
 		wprintf(L"CreateService failed w/err 0x%08lx\n", GetLastError());
+		Logging::error("CreateService failed: 0x{:08x}", GetLastError());
 		goto Cleanup;
 	}
 
 	wprintf(L"%s is installed.\n", pszServiceName);
+	{
+		std::wstring ws(pszServiceName);
+		Logging::info("Service installed: {}", ToUtf8(ws));
+	}
 
 Cleanup:
 	// Centralized cleanup for all allocated resources.
@@ -73,6 +80,7 @@ void UninstallService(PWSTR pszServiceName)
 	if (schSCManager == NULL)
 	{
 		wprintf(L"OpenSCManager failed w/err 0x%08lx\n", GetLastError());
+		Logging::error("OpenSCManager failed: 0x{:08x}", GetLastError());
 		goto Cleanup;
 	}
 
@@ -115,10 +123,15 @@ void UninstallService(PWSTR pszServiceName)
 	if (!DeleteService(schService))
 	{
 		wprintf(L"DeleteService failed w/err 0x%08lx\n", GetLastError());
+		Logging::error("DeleteService failed: 0x{:08x}", GetLastError());
 		goto Cleanup;
 	}
 
 	wprintf(L"%s is removed.\n", pszServiceName);
+	{
+		std::wstring ws(pszServiceName);
+		Logging::info("Service removed: {}", ToUtf8(ws));
+	}
 
 Cleanup:
 	// Centralized cleanup for all allocated resources.

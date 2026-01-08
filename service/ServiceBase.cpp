@@ -21,6 +21,8 @@
 #include "service/ServiceException.h"
 #include <assert.h>
 #include <strsafe.h>
+#include "logging/Logging.h"
+#include "utils/StringConversion.h"
 #pragma endregion
 
 
@@ -209,6 +211,7 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR* pszArgv)
 {
     try
     {
+        Logging::info("Service starting");
         // Tell SCM that the service is starting.
         SetServiceStatus(SERVICE_START_PENDING);
 
@@ -217,10 +220,15 @@ void CServiceBase::Start(DWORD dwArgc, PWSTR* pszArgv)
 
         // Tell SCM that the service is started.
         SetServiceStatus(SERVICE_RUNNING);
+        Logging::info("Service started");
     }
     catch (CServiceException& e)
     {
         // Log the error.
+        {
+            std::wstring ws(e.whatMessage());
+            Logging::error("Service Start failed: {} (code={})", ToUtf8(ws), e.whatAppCode());
+        }
         WriteEventLogEntry(e.whatType(), e.whatMessage());
 
         // Set the service status to be stopped.
@@ -262,6 +270,7 @@ void CServiceBase::Stop()
     DWORD dwOriginalState = m_status.dwCurrentState;
     try
     {
+        Logging::info("Service stopping");
         // Tell SCM that the service is stopping.
         SetServiceStatus(SERVICE_STOP_PENDING);
 
@@ -270,9 +279,14 @@ void CServiceBase::Stop()
 
         // Tell SCM that the service is stopped.
         SetServiceStatus(SERVICE_STOPPED);
+        Logging::info("Service stopped");
     }
     catch (CServiceException& e)
     {
+        {
+            std::wstring ws(e.whatMessage());
+            Logging::error("Service Stop failed: {}", ToUtf8(ws));
+        }
         // Log the error.
         WriteEventLogEntry(e.whatType(), e.whatMessage());
 
@@ -453,6 +467,9 @@ void CServiceBase::SetServiceStatus(DWORD dwCurrentState, DWORD dwWin32ExitCode,
 
     // Report the status of the service to the SCM.
     ::SetServiceStatus(m_statusHandle, &m_status);
+
+    // Log status transitions
+    Logging::info("Service status changed: currentState={} win32Exit={} waitHint={}", dwCurrentState, dwWin32ExitCode, dwWaitHint);
 }
 
 
@@ -499,6 +516,17 @@ void CServiceBase::WriteEventLogEntry(WORD wType, PWSTR pszMessage, ...)
             lpszStrings,           // Array of strings
             NULL                   // No binary data
         );
+
+        // Mirror event log entries to the logging system so logs are available
+        // in file/console output as well.
+        std::wstring ws(szMessage);
+        if (wType == EVENTLOG_ERROR_TYPE) {
+            Logging::error("{}", ToUtf8(ws));
+        } else if (wType == EVENTLOG_WARNING_TYPE) {
+            Logging::warn("{}", ToUtf8(ws));
+        } else {
+            Logging::info("{}", ToUtf8(ws));
+        }
 
         DeregisterEventSource(hEventSource);
     }

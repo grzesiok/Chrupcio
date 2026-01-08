@@ -7,6 +7,7 @@ add_executable(ChrupcioTests
     ${CMAKE_CURRENT_SOURCE_DIR}/test_commandmanager.cpp
     ${CMAKE_SOURCE_DIR}/algortihms/queue/queue.cpp
     ${CMAKE_SOURCE_DIR}/execute_unit/CommandManager.cpp
+    ${CMAKE_SOURCE_DIR}/logging/Logging.cpp
 )
 
 target_include_directories(ChrupcioTests PRIVATE ${CMAKE_SOURCE_DIR})
@@ -31,6 +32,9 @@ endif()
 target_include_directories(ChrupcioTests PRIVATE ${doctest_SOURCE_DIR})
 
 target_compile_definitions(ChrupcioTests PRIVATE UNIT_TEST)
+
+# Link spdlog (+ fmt) to tests so assertions/logs work the same as the app
+target_link_libraries(ChrupcioTests PRIVATE spdlog::spdlog fmt::fmt)
 
 # Register the test executable with CTest (runs all tests)
 add_test(NAME ChrupcioTests COMMAND ChrupcioTests)

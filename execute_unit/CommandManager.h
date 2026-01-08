@@ -25,6 +25,7 @@ struct SJob {
 #include <condition_variable>
 #include <memory>
 #include <unordered_map>
+#include <cstdint>
 
 class CCommandManager
 {
@@ -46,6 +47,11 @@ public:
     // Waits for all running asynchronous jobs to finish (joins threads).
     void waitAllJobs();
 
+    // Waits up to timeoutMs milliseconds for all running asynchronous jobs to
+    // finish. Returns true if all jobs finished within the timeout, false if
+    // the timeout elapsed with still-running jobs.
+    bool waitAllJobs(uint64_t timeoutMs);
+
 private:
     std::map<std::string, CCommand*> m_commands;
 
@@ -57,6 +63,7 @@ private:
     };
 
     std::mutex m_jobsMutex;
+    std::condition_variable m_jobsFinishedCv;
     std::unordered_map<uint32_t, std::unique_ptr<JobInfo>> m_jobs;
     std::atomic<uint32_t> m_nextJobId{0};
 };
